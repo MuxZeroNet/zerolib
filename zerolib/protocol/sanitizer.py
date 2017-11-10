@@ -30,15 +30,15 @@ def val_types(types):
 def check_range(value, inclusive):
     lower, upper = inclusive
     if (lower is not None) and (value < lower):
-        raise ValueError('Value of key %s is too small' % repr(key))
+        raise ValueError('Value is too small. It should be in range%s' % repr(inclusive))
     if (upper is not None) and (value > upper):
-        raise ValueError('Value of key %s is too big' % repr(key))
+        raise ValueError('Value is too big. It should be in range%s' % repr(inclusive))
     return value
 
 @val_types((str, bytes))
 def check_length(value, strlen):
     if len(value) > strlen:
-        raise ValueError('Key %s: string is too long' % repr(key))
+        raise ValueError('String is too long. It should be in %d characters' % strlen)
     return value
 
 @val_types((str, bytes))
@@ -50,9 +50,10 @@ def check_regex(value, regex):
 def check_path(path):
     u_path = check_length(path, 255).decode('ascii')
     u_path = check_regex(u_path.replace('\\', '/'), regex_path)
+    u_path = u_path.lstrip('/')
     if '..' in u_path:
         raise ValueError('.. in inner_path %s' % repr(u_path))
-    return u_path.lstrip('/')
+    return u_path
 
 
 def accept_opt(func):
@@ -117,8 +118,10 @@ class Condition(object):
     @unpack_opt
     def regex(self, k, o, r):
         s = self.params.get(k)
-        if s:
+        try:
             s = s.decode('ascii')
+        except AttributeError as e:
+            raise TypeError('A bytes object is required, not %s' % s.__class__.__name__) from e
         return opt_check_regex(s, o, r)
 
     def btc(self, keyopt):
@@ -134,3 +137,8 @@ class Condition(object):
     def inner(self, k, o):
         return opt_check_path(self.params.get(k), o)
 
+
+def is_regex_subset(regex_str):
+    raise NotImplementedError()
+
+__all__ = ['is_regex_subset']
