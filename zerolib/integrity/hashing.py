@@ -34,10 +34,10 @@ def digest_stream(stream, algo='sha512'):
         data = stream.read(4096)
     return (hasher.digest(), size)
 
-def digest_file(path, hasher='sha512'):
+def digest_file(path, algo='sha512'):
     """Compute the digest of the file at the given path. Returns (digest, stream_size)"""
     with open(path, 'rb') as f:
-        return digest_stream(f, hasher)
+        return digest_stream(f, algo)
 
 def verify_digest_bytes(data, expect_digest, expect_size=None, algo='sha512'):
     """Verify if [data] corresponds to [expect_digest] and has a size of [expect_size].
