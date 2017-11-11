@@ -1,4 +1,4 @@
-zerolib: A Minimalist ZeroNet Protocol Library
+``zerolib``: A Minimalist ZeroNet Protocol Library
 ==============================================
 
 ``zerolib`` is a minimalist utility library for working with the ZeroNet protocol, which is based on MessagePack and uses deterministic elliptic curve signature. It is written for Python 3.5+
@@ -22,7 +22,7 @@ This is a highly experimental library. Before its API is stablized, developers s
 How to install
 --------------
 
-I recommend you use `zerolib` in a virtual environment.
+I recommend you use ``zerolib`` in a virtual environment.
 
 .. code-block:: ruby
 
@@ -32,7 +32,7 @@ I recommend you use `zerolib` in a virtual environment.
     python3 -m venv devel/
     cd devel
     git clone https://github.com/MuxZeroNet/zerolib.git
-    
+
     # Super important! You must activate the virtual environment.
     # The `source` command activates the virtual environment.
     source ./bin/activate
@@ -43,9 +43,13 @@ I recommend you use `zerolib` in a virtual environment.
     python3 run_tests.py
 
 
+Table of contents
+-----------------
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-   
-   reference/integrity
-   reference/protocol
+    :maxdepth: 2
+    
+    index
+    reference/integrity
+    reference/protocol
+    reference/protocol.packets

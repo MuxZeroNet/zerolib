@@ -1,0 +1,44 @@
+/* side bar and headings */
+.sphinxsidebarwrapper {
+    background-color: #F2F2F2;
+}
+
+.body h1, .body h2, .body h3 {
+    border-bottom: 1px solid #ddd;
+}
+
+.toctree-l1 {
+    margin-bottom: 10px;
+}
+
+/* param table */
+table.field-list p {
+    margin-bottom: unset;
+}
+
+table.field-list {
+    border-collapse: separate;
+    border-spacing: 0 0.5em;
+}
+
+dd p {
+    margin-bottom: 10px;
+}
+
+/* admob */
+div.admonition {
+    border: none;
+}
+
+div.admonition, div.note, div.tip {
+    background-color: #F2F2F2;
+}
+
+/* ad */
+.rtd-pro {
+    opacity: 0.2;
+}
+
+.rtd-pro::hover {
+    opacity: unset;
+}

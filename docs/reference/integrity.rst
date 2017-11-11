@@ -149,10 +149,11 @@ Utilities
 .. function:: dumps(json_dict, compact=False)
 
     Pack the given dictionary to a JSON string, returning a unicode string. **Note that the return value is NOT a bytes-like string.**
-
-    If ``compact`` is *True*, the JSON string will be tightly packed.
-
-    If ``compact`` is *False*, the keys will be sorted and the JSON object will be pretty-printed.
+    
+    If ``compact`` is *True*, the JSON string will be tightly packed. If ``compact`` is *False*, the keys will be sorted and the JSON object will be pretty-printed.
+    
+    :param dict json_dict: the dictionary to stringify.
+    :param bool compact: the formatting option.
     
     :rtype: str
 
