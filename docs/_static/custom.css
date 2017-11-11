@@ -39,6 +39,6 @@ div.admonition, div.note, div.tip {
     opacity: 0.2;
 }
 
-.rtd-pro::hover {
+.rtd-pro:hover {
     opacity: unset;
 }
