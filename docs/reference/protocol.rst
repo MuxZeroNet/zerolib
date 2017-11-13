@@ -46,7 +46,7 @@ Routing
     :var last_seen: the time when the last request from the peer is received.
 
     :var sites: the set of sites the peer is hosting.
-    :type sites: set of str
+    :vartype sites: set of str
 
     :var dht: reserved for DHT data structure. There is currently no official specification.
 
@@ -106,7 +106,7 @@ Packets
     :var int req_id: the request ID (sequence number) as indicated on the packet. Since the value of this attribute is taken directly from the packet, request ID is for reference purposes only.
 
     :var sender: where the packet is from.
-    :type sender: AddrPort or None
+    :vartype sender: AddrPort or None
 
 .. seealso::
 
@@ -121,7 +121,7 @@ Packets
 
         A packet class inherited from :class:`PrefixIter` supports iteration.
 
-        .. code-blocks:: python
+        .. code-block:: python
 
             >>> from protocol import unpack_dict
             >>> packet = unpack_dict({b'cmd': b'response', b'to': 0, \

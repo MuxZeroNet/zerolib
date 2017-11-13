@@ -15,14 +15,14 @@ Every symmetrical packet contains enough information which the program can inter
     Unpacked ``handshake`` packet sent when the connection was initialized.
 
     :var crypto_set: the set of supported cryptographic algorithms.
-    :type crypto_set: set of str
+    :vartype crypto_set: set of str
     :var int port: the port number the sender is actively listening on.
     :var onion: the Tor Onion Address of the peer. *(only used in Tor mode)*
-    :type onion: OnionAddress or None
+    :vartype onion: OnionAddress or None
     :var str protocol: a unicode string representing the protocol version.
     :var bool open: whether the sender believes his port is open.
     :var peer_id: the peer ID as a **binary string**. *(not available in Tor mode)*
-    :type peer_id: bytes or None
+    :vartype peer_id: bytes or None
     :var str version: the version string of the sender's software.
     :var int rev: the rev number of the sender's software.
 
@@ -44,62 +44,66 @@ Asymmetrical Packets
 
 An asymmetrical response packet itself does not contain enough information. To fully interpret an asymmetrical response, the program has to refer to its previous requests.
 
+.. |bitcoin| replace:: the site address, a human-readable Bitcoin address.
+.. |injected| replace:: The following variables will be injected when the packet is handled by the state machine.
+
 .. class:: PEX(Packet)
 
     Unpacked ``pex`` packet that exchanges peers with the client. Peers are parsed at construct-time.
 
-    :var str site: the site address, a human-readable Bitcoin address.
+    :var str site: |bitcoin|
     :var int need: the number of peers the sender needs.
     :var peers: clearnet peers.
-    :type peers: set of AddrPort
+    :vartype peers: set of :class:`AddrPort`
     :var onions: Tor Onion Service peers.
-    :type onions: set of AddrPort
+    :vartype onions: set of :class:`AddrPort`
 
 .. class:: RespPEX(Packet)
 
     Response packet of :class:`PEX`.
 
     :var peers: clearnet peers
-    :type peers: set of AddrPort
+    :vartype peers: set of :class:`AddrPort`
     :var onions: Tor Onion Service peers
-    :type onions: set of AddrPort
+    :vartype onions: set of :class:`AddrPort`
 
-    The following variables will be injected when the packet is handled by the state machine.
+    |injected|
 
-    :var str site:
+    :var str site: |bitcoin|
 
+.. |inner| replace:: the relative path to the requested file.
 
 .. class:: GetFile(Packet)
 
     Unpacked ``getFile`` packet that requests for a file.
 
-    :var str site: the site address, a human-readable Bitcoin address.
-    :var str inner_path: the relative path to the requested file.
+    :var str site: |bitcoin|
+    :var str inner_path: |inner|
     :var int offset: request file from this offset.
     :var total_size: the total size of the requested file. *(optional)*
-    :type total_size: int or None
+    :vartype total_size: int or None
 
 .. class:: RespFile(Packet)
 
     Response packet of :class:`GetFile`.
 
     :var bytes body: a chunk of file content.
-    :var int last_byte: the absolute offset of the last byte of :var:`body`.
+    :var int last_byte: the absolute offset of the last byte of ``body``.
     :var int total_size: the total size of the whole file.
-    :var int offset: property. The absolute offset of the first byte of :var:`body`.
+    :var int offset: property. The absolute offset of the first byte of ``body``.
     :var int next_offset: property. The start offset of the next ``getFile`` request.
 
-    The following variables will be injected when the packet is handled by the state machine.
+    |injected|
 
-    :var str site:
-    :var str inner_path:
+    :var str site: |bitcoin|
+    :var str inner_path: |inner|
 
 
 .. class:: ListMod(Packet)
 
     Unpacked ``listModified`` packet that requests for the paths of ``content.json`` files modified since the given time. This packet is used to heuristically list a site's new user content.
 
-    :var str site: the site address, a human-readable Bitcoin address.
+    :var str site: |bitcoin|
     :var int since: list content.json files since this timestamp. The timestamp is in seconds.
 
     .. warning::
@@ -111,48 +115,48 @@ An asymmetrical response packet itself does not contain enough information. To f
     Response packet of :class:`ListMod`.
 
     :var timestamps: the ``{inner_path : timestamp}`` dictionary.
-    :type timestamps: dict of str and int
+    :vartype timestamps: dict of str and int
 
     .. method:: __iter__(self)
     .. method:: __contains__(self, key)
     .. method:: items(self)
 
-        Helper methods for iterating through the :var:`timestamps`.
+        Helper methods for iterating through the ``timestamps``.
 
         .. code-block:: python
 
             for (inner_path, timestamp) in packet.items():
                 print('File %r was updated on %d' % (inner_path, timestamps))
 
-    The following variables will be injected when the packet is handled by the state machine.
+    |injected|
 
-    :var str site:
+    :var str site: |bitcoin|
 
 .. class:: GetHash(Packet)
 
     Unpacked ``getHashfield`` packet that requests for the client's list of downloaded optional file IDs.
 
-    :var str site: the site address, a human-readable Bitcoin address.
+    :var str site: |bitcoin|
 
 .. class:: RespHashSet(Packet, PrefixIter)
 
     Response packet of :class:`GetHash`.
 
     :var prefixes: hash ID prefixes in a set.
-    :type prefixes: set of bytes
+    :vartype prefixes: set of bytes
 
-    The following variables will be injected when the packet is handled by the state machine.
+    |injected|
 
-    :var str site:
+    :var str site: |bitcoin|
 
 
 .. class:: FindHash(Packet)
 
     Unpacked ``findHashIds`` packet that asks if the client knows any peer that has the said optional file IDs.
 
-    :var str site: the site address, a human-readable Bitcoin address.
+    :var str site: |bitcoin|
     :var prefixes: the set of optional file IDs. An optional file ID is the first 2 bytes of the file's hash.
-    :type prefixes: set of bytes
+    :vartype prefixes: set of bytes
 
 .. class:: RespHashDict(Packet)
 
@@ -163,9 +167,9 @@ An asymmetrical response packet itself does not contain enough information. To f
 
     Unpacked ``setHashfield`` packet that announces the sender's list of optional file IDs.
 
-    :var str site: the site address, a human-readable Bitcoin address.
+    :var str site: |bitcoin|
     :var prefixes: the set of optional file IDs. An optional file ID is the first 2 bytes of the file's hash.
-    :type prefixes: set of bytes
+    :vartype prefixes: set of bytes
 
 .. class:: Predicate(Packet):
 
@@ -179,11 +183,15 @@ An asymmetrical response packet itself does not contain enough information. To f
 
     Its response packet is a :class:`Predicate`.
 
+.. |port| replace:: the port number which the sender would like you to check.
+
 .. class:: CheckPort(Packet):
 
     Unpacked ``actionCheckport`` packet that asks the client to check the sender's port status.
 
-    :var int port: the port number which the sender wants you to check.
+    :var int port: |port|
+
+
 
 .. class:: RespPort(Packet)
 
@@ -191,6 +199,6 @@ An asymmetrical response packet itself does not contain enough information. To f
 
     :var str status: port status.
 
-    The following variables will be injected when the packet is handled by the state machine.
+    |injected|
 
-    :var int port:
+    :var int port: |port|
