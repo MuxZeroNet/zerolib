@@ -1,23 +1,30 @@
-default_score = 50
-
 class Peer(object):
-    __slots__ = ['address', 'last_seen', 'sites', 'dht', 'score']
+    __slots__ = ['dest', 'last_seen', 'sites', 'dht', 'score']
+    default_score = 50
 
-    def __init__(self, address, last_seen, sites = None, dht = None, score = None):
-        self.address = address
+    def __init__(self, dest, last_seen, sites = None, dht = None, score = None):
+        self.dest = dest
         self.last_seen = last_seen
         self.sites = sites or set()
         self.dht = dht
-        self.score = score if score is not None else default_score
+        self.score = score if score is not None else Peer.default_score
 
     def __eq__(self, other):
-        return self.address == other.address
+        return self.dest == other.dest
 
     def __hash__(self):
-        return hash(self.address)
+        return hash(self.dest)
 
     def __repr__(self):
-        return 'Peer(%s)' % repr(self.address)
+        return '<Peer %s>' % repr(self.dest)
+
+    @property
+    def address(self):
+        return self.dest.address
+
+    @property
+    def port(self):
+        return self.dest.port
 
 
 
@@ -53,5 +60,9 @@ class Router:
     def __iter__(self):
         return iter(self.peers)
 
+    @staticmethod
+    def distance(hash_a, hash_b):
+        return int.from_bytes(hash_a, byteorder='big') ^ int.from_bytes(hash_b, byteorder='big')
 
-__all__ = ['default_score', 'Peer', 'Router']
+
+__all__ = ['Peer', 'Router']

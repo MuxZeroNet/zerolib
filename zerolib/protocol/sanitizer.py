@@ -14,7 +14,7 @@ range_time = (0, 0xFFffFFffFFffFFff)
 
 def check_types(value, t):
     if not isinstance(value, t):
-        raise TypeError('Value should be %s, not %s' % (repr(t), value.__class__.__name__))
+        raise TypeError('Value should be %s, but not %s' % (repr(t), value.__class__.__name__))
     return value
 
 def val_types(types):
@@ -47,6 +47,7 @@ def check_regex(value, regex):
         raise ValueError('Failed RegEx test %s' % repr(regex))
     return value
 
+@val_types(bytes)
 def check_path(path):
     u_path = check_length(path, 255).decode('ascii')
     u_path = check_regex(u_path.replace('\\', '/'), regex_path)
@@ -96,7 +97,7 @@ class Condition(object):
 
     @unpack_opt
     def as_type(self, k, o, t):
-        return opt_check_type(self.params.get(k), o, t)
+        return opt_check_types(self.params.get(k), o, t)
 
     @unpack_opt
     def strlen(self, k, o, length):
