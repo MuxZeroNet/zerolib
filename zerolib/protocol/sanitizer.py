@@ -29,11 +29,19 @@ def val_types(types):
 @val_types((int, float, bytes))
 def check_range(value, inclusive):
     lower, upper = inclusive
-    if (lower is not None) and (value < lower):
-        raise ValueError('Value is too small. It should be in range%s' % repr(inclusive))
-    if (upper is not None) and (value > upper):
-        raise ValueError('Value is too big. It should be in range%s' % repr(inclusive))
-    return value
+
+    predicate = False
+    if (lower is not None) and (upper is not None):
+        predicate = (lower <= value <= upper)
+    elif lower is None:
+        predicate = (value <= upper)
+    elif upper is None:
+        predicate = (lower <= value)
+
+    if not predicate:
+        raise ValueError('Value out of range [%r, %r]' % inclusive)
+    else:
+        return value
 
 @val_types((str, bytes))
 def check_length(value, strlen):
@@ -57,22 +65,6 @@ def check_path(path):
     return u_path
 
 
-def accept_opt(func):
-    def newf(value, opt, *args):
-        if opt and (value is None):
-            return None
-        else:
-            return func(value, *args)
-
-    return newf
-
-opt_check_types = accept_opt(check_types)
-opt_check_range = accept_opt(check_range)
-opt_check_length = accept_opt(check_length)
-opt_check_regex = accept_opt(check_regex)
-opt_check_path = accept_opt(check_path)
-
-
 def opt(key):
     return (key, True)
 
@@ -84,8 +76,15 @@ def _unpack_opt(keyopt):
 
 def unpack_opt(func):
     def f(self, keyopt, *args):
-        k, o = _unpack_opt(keyopt)
-        return func(self, k, o, *args)
+        key, optional = _unpack_opt(keyopt)
+        try:
+            value = self.params[key]
+        except KeyError as e:
+            if optional:
+                return None
+            else:
+                raise e
+        return func(self, value, *args)
     return f
 
 
@@ -96,16 +95,16 @@ class Condition(object):
         self.params = params
 
     @unpack_opt
-    def as_type(self, k, o, t):
-        return opt_check_types(self.params.get(k), o, t)
+    def as_type(self, v, t):
+        return check_types(v, t)
 
     @unpack_opt
-    def strlen(self, k, o, length):
-        return opt_check_length(self.params.get(k), o, length)
+    def strlen(self, v, length):
+        return check_length(v, length)
 
     @unpack_opt
-    def range(self, k, o, inclusive):
-        return opt_check_range(self.params.get(k), o, inclusive)
+    def range(self, v, inclusive):
+        return check_range(v, inclusive)
 
     def time(self, keyopt):
         return self.range(keyopt, range_time)
@@ -117,13 +116,12 @@ class Condition(object):
         return self.range(keyopt, (0, 65535))
 
     @unpack_opt
-    def regex(self, k, o, r):
-        s = self.params.get(k)
+    def regex(self, v, r):
         try:
-            s = s.decode('ascii')
+            s = v.decode('ascii')
         except AttributeError as e:
-            raise TypeError('A bytes object is required, not %s' % s.__class__.__name__) from e
-        return opt_check_regex(s, o, r)
+            raise TypeError('A bytes object is required, not %s' % v.__class__.__name__) from e
+        return check_regex(s, r)
 
     def btc(self, keyopt):
         return self.regex(keyopt, regex_btc)
@@ -135,8 +133,8 @@ class Condition(object):
         return self.regex(keyopt, regex_onion)
 
     @unpack_opt
-    def inner(self, k, o):
-        return opt_check_path(self.params.get(k), o)
+    def inner(self, v):
+        return check_path(v)
 
 
 def is_regex_subset(regex_str):

@@ -3,7 +3,8 @@ from .packets import response_packets, RespFile
 
 Info = namedtuple('Info', ['cls', 'attr_dict'])
 
-class PacketInterp:
+class PacketInterp(object):
+    __slots__ = ['sequence', '_next_num']
     capacity = 10
 
     def __init__(self):

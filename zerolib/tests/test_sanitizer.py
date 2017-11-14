@@ -1,5 +1,6 @@
 import unittest
 import protocol.sanitizer as sn
+from protocol.sanitizer import opt
 
 def raw_getter(self, key):
     return self.p[bytes(key, 'ascii')]
@@ -200,3 +201,16 @@ class TestCondition(unittest.TestCase):
     @func_raises(TypeError, ('none', 'n1.1', 'port1.1'))
     def test_path_valueerror(self, key):
         self.c.inner(key)
+
+
+    # opt tests
+    @accept_item(('path1.1',), str_getter)
+    def test_opt(self, key, val):
+        self.assertEquals(self.c.inner(opt(key)), val)
+
+    def test_opt_nonexistent(self):
+        self.assertEquals(self.c.inner(opt('path_nonexistent')), None)
+        with self.assertRaises(ValueError):
+            self.c.inner(opt('path2.1'))
+        with self.assertRaises(KeyError):
+            self.c.inner('path_nonexistent')

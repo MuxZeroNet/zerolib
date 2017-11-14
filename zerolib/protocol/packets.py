@@ -33,17 +33,17 @@ def unpack_stream(stream, sender = None):
 
 
 @val_types(dict)
-def unpack_dict(unpacked, sender = None):
-    req_id = unpacked.get(b'req_id', unpacked.get(b'to'))
+def unpack_dict(packet, sender = None):
+    req_id = packet.get(b'req_id', packet.get(b'to'))
     if not isinstance(req_id, int):
         raise TypeError('Sequence number (req_id) should be an int, not %s' % req_id.__class__.__name__)
     if not (0 <= req_id <= 0xFFffFFff):
         raise ValueError('Sequence number (req_id) out of range')
 
-    if unpacked[b'cmd'] == b'response':
-        instance = unpack_response(unpacked)
+    if packet[b'cmd'] == b'response':
+        instance = unpack_response(packet)
     else:
-        instance = unpack_request(unpacked)
+        instance = unpack_request(packet)
 
     instance.req_id = req_id
     instance.sender = sender
@@ -64,7 +64,7 @@ def unpack_response(params):
             instance.parse(params)
             return instance
     for ((key, t), cls) in attr_type_dict.items():
-        if isinstance(data.get(key), t):
+        if isinstance(params.get(key), t):
             instance = cls()
             instance.parse(params)
             return instance
@@ -291,12 +291,20 @@ class Handshake(Packet):
         self.version = c.strlen('version', 64).decode('ascii')
 
         onion = c.onion(opt('onion'))
-        if onion:
-            self.onion = OnionAddress(onion)
+        if onion and self.port:
+            self.onion = AddrPort(OnionAddress(onion), self.port)
         else:
             self.onion = None
 
         self.open = (params.get(b'opened') is True)
+
+    @property
+    def onion_address(self):
+        if self.onion:
+            return self.onion.address
+        else:
+            return None
+
 
 
 class OhHi(Handshake):
@@ -453,7 +461,10 @@ class RespPort(Packet):
     def parse(self, params):
         c = Condition(params)
 
-        self.status = c.strlen(c.as_type('status', bytes), 32).decode('ascii')
+        try:
+            self.status = c.strlen('status', 32).decode('ascii')
+        except AttributeError as e:
+            raise TypeError() from e
 
     @property
     def open(self):
