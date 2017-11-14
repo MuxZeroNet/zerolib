@@ -1,9 +1,7 @@
 ``zerolib.protocol`` - Full list of packets
 ===========================================
 
-BitTorrent packets are symmetrical. Messages sent in both directions look the same. There is no request or response. The reason behind this choice is to avoid using a sequence number, even when packets may be lost, duplicated or not be received in order.
-
-Unlike BitTorrent, not all ZeroNet packets are symmetrical. To fully interpret an asymmetrical response packet, a computer program has to refer to its previous request packets. This design decision makes every implementation rely on a state machine. This page lists all documented ZeroNet packets in two categories.
+Unlike BitTorrent, not all ZeroNet packets are symmetrical. This page lists all documented ZeroNet packets in two categories.
 
 Symmetrical Packets
 -------------------
@@ -16,13 +14,15 @@ Every symmetrical packet contains enough information which the program can inter
 
     :var crypto_set: the set of supported cryptographic algorithms.
     :vartype crypto_set: set of str
-    :var int port: the port number the sender is actively listening on.
-    :var onion: the Tor Onion Address of the peer. *(only used in Tor mode)*
-    :vartype onion: OnionAddress or None
-    :var str protocol: a unicode string representing the protocol version.
-    :var bool open: whether the sender believes his port is open.
     :var peer_id: the peer ID as a **binary string**. *(not available in Tor mode)*
     :vartype peer_id: bytes or None
+    :var int port: the port number the sender is actively listening on.
+    :var bool open: whether the sender believes his port is open.
+    :var onion: the Tor Onion Service destination of the peer. *(only used in Tor mode)*
+    :vartype onion: AddrPort or None
+    :var onion_address: the Tor Onion Service address of the peer, excluding the port. *(only used in Tor mode)*
+    :vartype onion_address: OnionAddress or None
+    :var str protocol: a unicode string representing the protocol version.
     :var str version: the version string of the sender's software.
     :var int rev: the rev number of the sender's software.
 
@@ -62,9 +62,9 @@ An asymmetrical response packet itself does not contain enough information. To f
 
     Response packet of :class:`PEX`.
 
-    :var peers: clearnet peers
+    :var peers: clearnet peers.
     :vartype peers: set of :class:`AddrPort`
-    :var onions: Tor Onion Service peers
+    :var onions: Tor Onion Service peers.
     :vartype onions: set of :class:`AddrPort`
 
     |injected|
@@ -104,17 +104,17 @@ An asymmetrical response packet itself does not contain enough information. To f
     Unpacked ``listModified`` packet that requests for the paths of ``content.json`` files modified since the given time. This packet is used to heuristically list a site's new user content.
 
     :var str site: |bitcoin|
-    :var int since: list content.json files since this timestamp. The timestamp is in seconds.
+    :var int since: list modified ``content.json`` files since this timestamp. The timestamp is in seconds.
 
     .. warning::
 
         This timestamp is defined vaguely in the spec. Is it an int or a float? `Link to the spec. <https://zeronet.readthedocs.io/en/latest/help_zeronet/network_protocol/#listmodified-site-since>`_
 
-.. class:: RespMod(Packet):
+.. class:: RespMod(Packet)
 
     Response packet of :class:`ListMod`.
 
-    :var timestamps: the ``{inner_path : timestamp}`` dictionary.
+    :var timestamps: the ``{inner_path : mtime}`` dictionary.
     :vartype timestamps: dict of str and int
 
     .. method:: __iter__(self)
@@ -125,8 +125,8 @@ An asymmetrical response packet itself does not contain enough information. To f
 
         .. code-block:: python
 
-            for (inner_path, timestamp) in packet.items():
-                print('File %r was updated on %d' % (inner_path, timestamps))
+            for (inner_path, mtime) in packet.items():
+                print('New file %r, last modified %d' % (inner_path, mtime))
 
     |injected|
 
@@ -162,7 +162,6 @@ An asymmetrical response packet itself does not contain enough information. To f
 
     Response packet of :class:`FindHash`.
 
-
 .. class:: SetHash(Packet)
 
     Unpacked ``setHashfield`` packet that announces the sender's list of optional file IDs.
@@ -171,7 +170,7 @@ An asymmetrical response packet itself does not contain enough information. To f
     :var prefixes: the set of optional file IDs. An optional file ID is the first 2 bytes of the file's hash.
     :vartype prefixes: set of bytes
 
-.. class:: Predicate(Packet):
+.. class:: Predicate(Packet)
 
     Status predicate. Either an ``ok`` packet or an ``error`` packet. Response packet of :class:`Update` and :class:`SetHash`.
 
@@ -185,7 +184,7 @@ An asymmetrical response packet itself does not contain enough information. To f
 
 .. |port| replace:: the port number which the sender would like you to check.
 
-.. class:: CheckPort(Packet):
+.. class:: CheckPort(Packet)
 
     Unpacked ``actionCheckport`` packet that asks the client to check the sender's port status.
 
@@ -197,7 +196,8 @@ An asymmetrical response packet itself does not contain enough information. To f
 
     Response packet of :class:`CheckPort`.
 
-    :var str status: port status.
+    :var str status: port status as a human-readable string.
+    :var bool open: whether the port is open.
 
     |injected|
 
