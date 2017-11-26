@@ -10,7 +10,9 @@ This is a highly experimental library. Before its API is stablized, developers s
 - Digital signatures
 - Hashing and data integrity checking
 - TLS certificate utilities
-- Parsing and formatting packets
+- Packet parsing and formatting
+- Connection managing
+- Readers-writer locks
 
 `zerolib` is inspired by the reference ZeroNet implementation written by shortcutme, but features more consistent API and greater flexibility.
 
@@ -33,6 +35,7 @@ git clone https://github.com/MuxZeroNet/zerolib.git
 source ./bin/activate  # Super important! You must activate the virtual environment.
 which python3 && which pip
 python3 -m pip install -r zerolib/requirements.txt --upgrade
+python3 -m pip install -r zerolib/ci-requirements.txt --upgrade
 
 cd zerolib/zerolib
 python3 run_tests.py
