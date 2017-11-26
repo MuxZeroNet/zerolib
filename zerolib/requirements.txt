@@ -1,5 +1,0 @@
-wheel
-coincurve==6.0.0
-cryptography>=2.1.3
-base58>=0.2.5
-msgpack-python>=0.4.8
