@@ -24,6 +24,19 @@ class TestRWLock(unittest.TestCase):
         with self.assertRaises(ValueError):
             rwlock.release('r')
 
+    @timeout(3)
+    def test_rw(self):
+        rwlock = RWLock()
+
+        rwlock.acquire('w')
+        rwlock.release('w')
+        for i in range(10):
+            rwlock.acquire('r')
+        for i in range(10):
+            rwlock.release('r')
+        rwlock.acquire('w')
+        rwlock.release('w')
+
     @assert_timeout(1)
     def test_context_rw(self):
         rwlock = RWLock()
