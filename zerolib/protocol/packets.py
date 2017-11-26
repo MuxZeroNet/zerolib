@@ -72,6 +72,14 @@ def unpack_response(params):
     raise KeyError('Unknown response packet')
 
 
+def use_condition(func):
+    def f(self, params):
+        c = Condition(params)
+        return func(self, c, params)
+    return f
+
+
+
 #################### base classes ####################
 
 class Packet(object):
@@ -86,12 +94,21 @@ class Packet(object):
     def pack(self):
         raise NotImplementedError()
 
+    def __bytes__(self):
+        return msgpack.packb(self.pack())
+
+    def write_to(self, stream):
+        return msgpack.pack(self.pack(), stream)
+
 class PrefixIter(object):
     def __iter__(self):
         return iter(self.prefixes)
 
     def __contains__(self, item):
         return (item in self.prefixes)
+
+    def __len__(self):
+        return len(self.prefixes)
 
 
 #################### ping, pong, ok ####################
@@ -118,9 +135,8 @@ class RespFile(Packet):
         'site', 'inner_path',
     ]
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         self.total_size = c.as_size('size')
         self.last_byte = c.range('location', (0, self.total_size - 1))
 
@@ -146,9 +162,8 @@ class GetFile(Packet):
     response_cls = RespFile
     copy_attrs = ['site', 'inner_path', 'offset', 'total_size']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         self.site = c.btc('site')
         self.inner_path = c.inner('inner_path')
         self.offset = c.as_size('location')
@@ -218,8 +233,8 @@ def unpack_onion(b):
 class RespPEX(Packet):
     __slots__ = ['peers', 'onions', 'site']
 
-    def parse(self, params):
-        c = Condition(params)
+    @use_condition
+    def parse(self, c, params):
         PEX.parse_peers(self, c)
 
 class PEX(Packet):
@@ -228,9 +243,8 @@ class PEX(Packet):
     response_cls = RespPEX
     copy_attrs = ['site']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         self.site = c.btc('site')
         self.need = c.range(opt('need'), (0, 10000)) or 0
         self.parse_peers(self, c)
@@ -259,23 +273,23 @@ class Update(Packet):
     __slots__ = ['site', 'inner_path', 'body']
     response_cls = Predicate
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         self.site = c.btc('site')
         self.inner_path = c.inner('inner_path')
         self.body = c.strlen('body', (0, 512*1024))
+
+        # TODO: diff
 
 
 #################### handshake and response ####################
 
 class Handshake(Packet):
     """Unpacked [handshake] packet sent when the connection is initialized."""
-    __slots__ = ['crypto_set', 'port', 'onion', 'protocol', 'open', 'peer_id', 'rev', 'version']
+    __slots__ = ['crypto_set', 'port', 'onion_address', 'protocol', 'open', 'peer_id', 'rev', 'version']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         crypto_list = c.as_type('crypt_supported', list)
         self.crypto_set = set()
         for item in crypt_list:
@@ -291,17 +305,17 @@ class Handshake(Packet):
         self.version = c.strlen('version', 64).decode('ascii')
 
         onion = c.onion(opt('onion'))
-        if onion and self.port:
-            self.onion = AddrPort(OnionAddress(onion), self.port)
+        if onion:
+            self.onion_address = OnionAddress(onion)
         else:
-            self.onion = None
+            self.onion_address = None
 
         self.open = (params.get(b'opened') is True)
 
     @property
-    def onion_address(self):
-        if self.onion:
-            return self.onion.address
+    def onion(self):
+        if self.onion_address and self.port:
+            return AddrPort(self.onion.address, self.port)
         else:
             return None
 
@@ -310,9 +324,8 @@ class Handshake(Packet):
 class OhHi(Handshake):
     __slots__ = ['preferred_crypto']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         super().parse(params)
         crypto = c.as_type(opt('crypt'), bytes)
         if crypto:
@@ -326,9 +339,8 @@ class OhHi(Handshake):
 class RespMod(Packet):
     __slots__ = ['timestamps', 'site']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         files_dict = c.as_type('modified_files', dict)
         self.timestamps = {}
         for item in files_dict.items():
@@ -348,6 +360,9 @@ class RespMod(Packet):
     def __contains__(self, key):
         return (key in self.timestamps)
 
+    def __len__(self):
+        return len(self.timestamps)
+
     def items(self):
         return self.timestamps.items()
 
@@ -360,9 +375,8 @@ class ListMod(Packet):
     response_cls = RespMod
     copy_attrs = ['site']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         self.site = c.btc('site')
         self.since = c.time('since')
 
@@ -383,15 +397,22 @@ def hash_prefix(int_hid):
     except struct.error as e:
         raise ValueError('Hash ID out of range(0, 0xFFFF)') from e
 
+prefix_len = 2
 @val_types(bytes)
 def hash_set(bstr):
-    if len(bstr) > 2000:
+    """
+    >>> bstr = b'11223344556677889900aaAAbbBBccddCDEFCDCDaaAA1122'
+    >>> hash_set(bstr)
+    frozenset({b'11', b'22', b'33', b'44', b'55', b'66', b'77', b'88', b'99', \
+    b'00', b'aa', b'AA', b'bb', b'BB', b'cc', b'dd', b'CD', b'EF'})
+    """
+
+    if len(bstr) > prefix_len * 2000:
         raise ValueError('Too many hash IDs to unpack')
-    prefixes = set()
-    for i in range(0, len(bstr), 2):
-        rawh = bstr[i : i+2]
-        if len(rawh) == 2:
-            prefixes.add(rawh)
+    if len(bstr) % prefix_len != 0:
+        raise ValueError('Hash ID string length should be multiples of %d, not %d' % (prefix_len, len(bstr)))
+    generator = (bstr[i : i+2] for i in range(0, len(bstr), 2))
+    prefixes = frozenset(generator)
     return prefixes
 
 
@@ -399,7 +420,7 @@ class RespHashSet(Packet, PrefixIter):
     __slots__ = ['prefixes', 'site']
 
     def parse(self, params):
-        self.prefixes = hash_set(params.get(b'hashfield_raw'))
+        SetHash.parse_raw_hash(self, params)
 
 
 class GetHash(Packet):
@@ -408,9 +429,8 @@ class GetHash(Packet):
     response_cls = RespHashSet
     copy_attrs = ['site']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         self.site = c.btc('site')
 
 
@@ -419,10 +439,12 @@ class SetHash(Packet, PrefixIter):
     __slots__ = ['site', 'prefixes']
     response_cls = Predicate
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         self.site = c.btc('site')
+        self.parse_raw_hash(params)
+
+    def parse_raw_hash(self, params):
         self.prefixes = hash_set(params.get(b'hashfield_raw'))
 
 
@@ -439,18 +461,19 @@ class FindHash(Packet, PrefixIter):
     response_cls = RespHashSet
     copy_attrs = ['site']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         self.site = c.btc('site')
 
+        def generator(plist):
+            for i in plist:
+                try:
+                    yield hash_prefix(i)
+                except (ValueError, TypeError):
+                    pass
+
         prefix_list = c.as_type('hash_ids', list)
-        self.prefixes = set()
-        for i in prefix_list:
-            try:
-                self.prefixes.add(hash_prefix(i))
-            except (ValueError, TypeError):
-                pass
+        self.prefixes = forzenset(generator(prefix_list))
 
 
 #################### check port ####################
@@ -458,9 +481,8 @@ class FindHash(Packet, PrefixIter):
 class RespPort(Packet):
     __slots__ = ['status', 'port']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         try:
             self.status = c.strlen('status', 32).decode('ascii')
         except AttributeError as e:
@@ -477,10 +499,28 @@ class CheckPort(Packet):
     response_cls = RespPort
     copy_attrs = ['port']
 
-    def parse(self, params):
-        c = Condition(params)
-
+    @use_condition
+    def parse(self, c, params):
         self.port = c.port('port')
+
+
+#################### big files ####################
+
+class RespPieceDict(Packet):
+    def parse(self, params):
+        raise NotImplementedError()
+
+class GetPieceStatus(Packet):
+    response_cls = RespPieceDict
+
+    def parse(self, params):
+        raise NotImplementedError()
+
+
+class SetPieceStatus(Packet):
+    response_cls = Predicate
+    def parse(self, params):
+        raise NotImplementedError()
 
 
 #################### DHT ####################
@@ -503,6 +543,9 @@ request_dict = {
     b'setHashfield': SetHash,
     b'findHashIds': FindHash,
     b'actionCheckport': CheckPort,
+    b'checkport': CheckPort,
+    b'getPieceFields': GetPieceStatus,
+    b'setPieceFields': SetPieceStatus,
 }
 
 attr_dict = {
@@ -514,6 +557,7 @@ attr_dict = {
     b'modified_files': RespMod,
     b'hashfield_raw': RespHashSet,
     b'status': RespPort,
+    b'piecefields_packed': RespPieceDict,
 }
 
 attr_type_dict = {
@@ -521,9 +565,12 @@ attr_type_dict = {
     (b'peers', dict): RespHashDict,
 }
 
-response_packets = set([
-    RespFile, RespMod, RespHashSet, RespPort, RespPEX, RespHashDict,
-])
+response_packets = set([])
+for v in request_dict.values():
+    try:
+        response_packets.add(getattr(v, 'response_cls'))
+    except AttributeError:
+        pass
 
 
 __all__ = [
@@ -531,8 +578,9 @@ __all__ = [
     'OnionAddress', 'Packet', 'PrefixIter',
 
     'GetFile', 'PEX', 'Update', 'Ping', 'Handshake', 'ListMod',
-    'GetHash', 'SetHash', 'FindHash', 'CheckPort',
+    'GetHash', 'SetHash', 'FindHash', 'CheckPort', 'GetPieceStatus',
+    'SetPieceStatus',
 
     'RespFile', 'RespPEX', 'Predicate', 'Pong', 'OhHi', 'RespMod',
-    'RespHashSet', 'RespHashDict', 'RespPort',
+    'RespHashSet', 'RespHashDict', 'RespPort', 'RespPieceDict',
 ]
