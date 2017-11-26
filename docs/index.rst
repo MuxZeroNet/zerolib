@@ -53,4 +53,5 @@ Table of contents
     reference/integrity
     reference/protocol
     reference/protocol.packets
+    reference/nettools
     discussion/index

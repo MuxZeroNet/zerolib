@@ -1,5 +1,5 @@
-``zerolib.protocol`` - Helpers for network I/O and common data structures
-=========================================================================
+``zerolib.protocol`` - Helpers for common data structures
+=========================================================
 
 This module offers functions for parsing packets and classes representing common data structures used in the ZeroNet protocol.
 
