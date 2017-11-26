@@ -1,5 +1,6 @@
 # zerolib: A Minimalist ZeroNet Protocol Library
 
+![Build status](https://api.travis-ci.org/MuxZeroNet/zerolib.svg?branch=master)
 
 `zerolib` is a minimalist utility library for working with the ZeroNet protocol, which is based on MessagePack and uses deterministic elliptic curve signature. It is written for Python 3.5+
 

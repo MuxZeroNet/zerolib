@@ -7,6 +7,8 @@ install:
     - pip install pip --upgrade
     - which python3 && which pip
     - python3 --version && python3 -m pip --version
+    - ls -a
+    - ls -a zerolib/
     - git clone https://github.com/MuxZeroNet/zerolib.git
     - python3 -m pip install -r zerolib/requirements.txt --upgrade
     - python3 -m pip install -r zerolib/ci-requirements.txt --upgrade
