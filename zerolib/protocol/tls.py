@@ -8,10 +8,12 @@ from cryptography.x509.oid import NameOID
 from datetime import datetime, timedelta
 from random import SystemRandom
 from .certdb import make_fields
+import ssl
 
 
 def make_cert():
     """Generate and return a public key PEM and a secret key PEM."""
+
     secretkey = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048,
@@ -65,6 +67,34 @@ def make_cert():
     return (publickey_pem, secretkey_pem)
 
 
+# Mozilla recommendation
+ciphers = ':'.join([
+    'ECDHE-ECDSA-AES256-GCM-SHA384', 'ECDHE-RSA-AES256-GCM-SHA384',
+    'ECDHE-ECDSA-CHACHA20-POLY1305', 'ECDHE-RSA-CHACHA20-POLY1305',
+    'ECDHE-ECDSA-AES128-GCM-SHA256', 'ECDHE-RSA-AES128-GCM-SHA256',
+    'ECDHE-ECDSA-AES256-SHA384', 'ECDHE-RSA-AES256-SHA384',
+    'ECDHE-ECDSA-AES128-SHA256', 'ECDHE-RSA-AES128-SHA256'])
+
+# SSL_OP_SINGLE_DH_USE
+# https://www.infoworld.com/article/3027557/security/openssl-patches-two-vulnerabilities-in-cryptographic-library.html
+# https://tools.cisco.com/security/center/viewAlert.x?alertId=43320
+# https://python-security.readthedocs.io/ssl.html
+
+def tweak_context_options(context):
+    context.options |= ssl.OP_NO_TLSv1
+    context.options |= ssl.OP_NO_TLSv1_1
+    # Python 3.6 default options below
+    context.options |= ssl.OP_NO_SSLv3
+    context.options |= ssl.OP_NO_SSLv2
+    context.options |= ssl.OP_NO_COMPRESSION
+    # This option has no effect on client sockets
+    context.options |= ssl.OP_CIPHER_SERVER_PREFERENCE
+    # This option only applies to server sockets
+    context.options |= ssl.OP_SINGLE_DH_USE
+    # This option only applies to server sockets
+    context.options |= ssl.OP_SINGLE_ECDH_USE
+
+
 def main():
     public, secret = make_cert()
     with open('public.pem', 'wb') as f:
@@ -78,4 +108,4 @@ if __name__ == '__main__':
     main()
 
 
-__all__ = ['make_cert']
+__all__ = ['make_cert', 'ciphers', 'tweak_context_options']
