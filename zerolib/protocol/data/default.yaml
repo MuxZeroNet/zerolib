@@ -1,0 +1,75 @@
+- pyca_docs
+    country: US
+    state: CA
+    locality: San Francisco
+    org: My Company
+    unit:
+    common: mysite.com
+    delta: 10
+    dns_names: localhost
+
+
+- python_docs
+    country: US
+    state: MyState
+    locality: Some City
+    org: My Organization, Inc.
+    unit: My Group
+    common: myserver.mygroup.myorganization.com
+    delta: 30
+    dns_names: localhost
+
+
+- openssl_1
+    country: AU
+    state: Some-State
+    locality:
+    org: Internet Widgits Pty Ltd
+    unit:
+    common:
+    delta: 30
+    dns_names: localhost
+
+
+- openssl_2
+    country: GB
+    state: Berkshire
+    locality: Newbury
+    org: My Company Ltd
+    unit:
+    common:
+    delta: 30
+    dns_names: localhost
+
+
+- zeronet_default
+    country: US
+    state: NY
+    locality: New York
+    org: Example, LLC
+    unit:
+    common: Example Company
+    delta: 30
+    dns_names: example.com  www.example.com  mail.example.com  ftp.example.com
+
+
+- localhost_1
+    country:
+    state:
+    locality:
+    org:
+    unit:
+    common: localhost
+    delta: 30
+    dns_names: localhost
+
+
+- localhost_2
+    country:
+    state:
+    locality:
+    org:
+    unit:
+    common:
+    delta: 30
+    dns_names: localhost

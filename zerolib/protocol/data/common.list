@@ -1,0 +1,38 @@
+Example Company
+IT
+CA
+Certification Authority
+TempCA
+CN=TempCA
+CN = TempCA
+SignedByCA
+CN=SignedByCA
+CN = SignedByCA
+Common
+Common Name
+Root CA
+Trusted Root Certification Authorities
+CertSign
+Root
+mysite.com
+www.mysite.com
+*.mysite.com
+example.com
+www.example.com
+*.example.com
+example.org
+www.example.org
+*.example.org
+server
+Server
+Host-01
+localhost
+127.0.0.1
+192.168.1.1
+example
+whatever
+demoCA
+demo
+test
+work
+workgroup
