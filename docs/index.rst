@@ -39,10 +39,11 @@ I recommend you use ``zerolib`` in a virtual environment.
     # The `source` command activates the virtual environment.
     source ./bin/activate
     which python3 && which pip
-    python3 -m pip install -r zerolib/requirements.txt --upgrade
-    python3 -m pip install -r zerolib/ci-requirements.txt --upgrade
 
-    cd zerolib/zerolib
+    cd zerolib/
+    python3 -m pip install -r requirements.txt --upgrade
+    python3 -m pip install -r ci-requirements.txt --upgrade
+
     python3 run_tests.py
 
 

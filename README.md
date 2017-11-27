@@ -35,9 +35,10 @@ git clone https://github.com/MuxZeroNet/zerolib.git
 
 source ./bin/activate  # Super important! You must activate the virtual environment.
 which python3 && which pip
-python3 -m pip install -r zerolib/requirements.txt --upgrade
-python3 -m pip install -r zerolib/ci-requirements.txt --upgrade
 
-cd zerolib/zerolib
+cd zerolib/
+python3 -m pip install -r requirements.txt --upgrade
+python3 -m pip install -r ci-requirements.txt --upgrade
+
 python3 run_tests.py
 ```
