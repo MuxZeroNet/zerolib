@@ -1,4 +1,4 @@
-from protocol.packets import *
+from ..protocol.packets import *
 
 func_routing = {
     Ping: 'ping',
@@ -28,7 +28,7 @@ func_routing = {
 class BaseServer(object):
     __slots__ = ()
 
-    def route_packet(self, packet):
+    def route(self, packet):
         func = getattr(self, func_routing[packet.__class__])
         return func(packet)
 
