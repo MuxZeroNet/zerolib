@@ -1,4 +1,5 @@
 import unittest
+from sys import stderr
 import zerolib.protocol.sanitizer as sn
 from zerolib.protocol.sanitizer import opt
 
@@ -9,10 +10,13 @@ def str_getter(self, key):
     return self.p[bytes(key, 'ascii')].decode('ascii')
 
 
+def print_keys(keys):
+    print(keys, end=' ... ', file=stderr)
+
 def accept_item(keys, valgetter):
     def decorator(assert_func):
         def f(self):
-            print(keys)
+            print_keys(keys)
             for k in keys:
                 assert_func(self, k, valgetter(self, k))
         return f
@@ -21,7 +25,7 @@ def accept_item(keys, valgetter):
 def func_raises(error_cls, keys):
     def decorator(test_func):
         def f(self):
-            print(keys)
+            print_keys(keys)
             for k in keys:
                 with self.assertRaises(error_cls):
                     test_func(self, k)
