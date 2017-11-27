@@ -1,6 +1,6 @@
 import unittest
-import protocol.sanitizer as sn
-from protocol.sanitizer import opt
+import zerolib.protocol.sanitizer as sn
+from zerolib.protocol.sanitizer import opt
 
 def raw_getter(self, key):
     return self.p[bytes(key, 'ascii')]

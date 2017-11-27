@@ -4,8 +4,9 @@ import json
 import os
 from base64 import b16encode, b16decode, b64encode, b64decode
 from coincurve import PublicKey, PrivateKey
-import integrity
+from zerolib import integrity
 
+test_data = os.path.dirname(__file__) + '/test_data'
 
 class TestBitcoin(unittest.TestCase):
     secret_address = '5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ'
@@ -74,10 +75,10 @@ class TestHash(unittest.TestCase):
     hash_whx = b16decode(b'79144d2a7bbff9ca02541784f5d8e2efa6b72489e8ad76b4d9ed8edc302235e8'.upper())
     hash_cnt = b16decode(b'691b1b702771532e6294dc24f8bd7239f0daa638b2b05a08879738887aa4ac4d'.upper())
 
-    path_tor = os.path.dirname(__file__) + '/test_data/Tor.png'
-    path_whx = os.path.dirname(__file__) + '/test_data/Whonix_Logo.png'
-    path_cnt = os.path.dirname(__file__) + '/test_data/content.json'
-    path_srl = os.path.dirname(__file__) + '/test_data/serialize.json'
+    path_tor = test_data + '/Tor.png'
+    path_whx = test_data + '/Whonix_Logo.png'
+    path_cnt = test_data + '/content.json'
+    path_srl = test_data + '/serialize.json'
 
     size_tor = 6258
     size_whx = 14848

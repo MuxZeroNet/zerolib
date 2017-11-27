@@ -1,7 +1,10 @@
 import unittest
-from storage import RWLock
-from timeout_decorator import timeout
-from timeout_decorator.timeout_decorator import TimeoutError as ExpectedTimeout
+from zerolib.storage import RWLock
+try:
+    from timeout_decorator import timeout
+    from timeout_decorator.timeout_decorator import TimeoutError as ExpectedTimeout
+except ImportError:
+    raise unittest.SkipTest('Cannot import timeout_decorator')
 
 def assert_timeout(seconds):
     def decorator(func):
