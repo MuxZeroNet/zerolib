@@ -1,11 +1,13 @@
 from ..protocol.packets import *
+from ..protocol import PacketInterp
+from threading import Lock
 
 func_routing = {
     Ping: 'ping',
     Pong: 'pong',
     Predicate: 'predicate',
     Handshake: 'handshake',
-    OhHi: 'oh_hi',
+    ACK: 'ack',
     GetFile: 'get_file',
     RespFile: 'resp_file',
     PEX: 'pex',
@@ -26,77 +28,33 @@ func_routing = {
 }
 
 class BaseServer(object):
-    __slots__ = ()
+    __default_funcs = frozenset(func_routing.values())
 
-    def route(self, packet):
+    def __init__(self):
+        self.interpreter = PacketInterp()
+        self.lock_interp = Lock()
+
+    def handle(self, packet):
         func = getattr(self, func_routing[packet.__class__])
+        with self.lock_interp:
+            self.interpreter.interpret(packet)
         return func(packet)
+
+    def send_to(self, packet, dest):
+        with self.lock_interp:
+            self.interpreter.register(packet)
+
+    def __nop(self, packet):
+        return None
+
+    def __getattr__(self, name):
+        if name in self.__class__.__default_funcs:
+            return self.__nop
+        else:
+            return super().__getattr__(name)
 
     def ping(self, packet):
         return Pong()
-
-    def pong(self, packet):
-        pass
-
-    def predicate(self, packet):
-        pass
-
-    def handshake(self, packet):
-        pass
-
-    def oh_hi(self, packet):
-        pass
-
-    def get_file(self, packet):
-        pass
-
-    def resp_file(self, packet):
-        pass
-
-    def pex(self, packet):
-        pass
-
-    def resp_pex(self, packet):
-        pass
-
-    def update(self, packet):
-        pass
-
-    def list_mod(self, packet):
-        pass
-
-    def resp_mod(self, packet):
-        pass
-
-    def get_hash(self, packet):
-        pass
-
-    def set_hash(self, packet):
-        pass
-
-    def find_hash(self, packet):
-        pass
-
-    def resp_hash_set(self, packet):
-        pass
-
-    def resp_hash_dict(self, packet):
-        pass
-
-    def check_port(self, packet):
-        pass
-
-    def resp_port(self, packet):
-        pass
-
-    def get_piece_status(self, packet):
-        pass
-
-    def set_piece_status(self, packet):
-        pass
-
-    def resp_piece_dict(self, packet):
-        pass
 
 
 __all__ = ['BaseServer']

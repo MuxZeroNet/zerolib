@@ -1,4 +1,5 @@
 import re
+import string
 
 def _escape(chars):
     return '\\' + '\\'.join(iter(chars))
@@ -6,7 +7,9 @@ def _escape(chars):
 regex_onion = '[a-zA-Z0-9]{16}'
 regex_btc = '1[a-zA-Z0-9]{25,}'
 regex_handle = '[a-zA-Z0-9_\\.\\-]{1,50}'
-regex_path = '[A-Za-z0-9_/%s-]+' % _escape('.()[]')
+# regex_path = '[A-Za-z0-9_/%s-]+' % _escape('.()[]')
+
+chars_path = frozenset(string.ascii_letters + string.digits + ' !#$(%&)+,-./=@[_]`{~}')
 
 range_size = (0, 0xFFFFFFFFFF)
 range_time = (0, 0xFFffFFffFFffFFff)
@@ -58,10 +61,12 @@ def check_regex(value, regex):
 @val_types(bytes)
 def check_path(path):
     u_path = check_length(path, 255).decode('ascii')
-    u_path = check_regex(u_path.replace('\\', '/'), regex_path)
-    u_path = u_path.lstrip('/')
+    u_path = u_path.replace('\\', '/').lstrip('/')
     if '..' in u_path:
         raise ValueError('.. in inner_path %s' % repr(u_path))
+    for ch in u_path:
+        if ch not in chars_path:
+            raise ValueError('Invalid char %r in inner_path %r' % (ch, u_path))
     return u_path
 
 
@@ -136,8 +141,4 @@ class Condition(object):
     def inner(self, v):
         return check_path(v)
 
-
-def is_regex_subset(regex_str):
-    raise NotImplementedError()
-
-__all__ = ['is_regex_subset']
+__all__ = ()

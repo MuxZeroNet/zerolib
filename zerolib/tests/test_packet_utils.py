@@ -1,4 +1,5 @@
 import unittest
+from ipaddress import IPv4Address
 from zerolib.protocol.packets import *
 from zerolib.protocol.packets import hash_set
 from zerolib.protocol.sequencing import *
@@ -35,7 +36,7 @@ class TestUnpack(unittest.TestCase):
         self.assertTrue(b'\x10\x11' in packet)
         self.assertFalse(b'\xA0\xB1' in packet)
 
-    def test_packet_inject(self):
+    def test_attr_inject(self):
         request = unpack_dict({b'req_id': 0, b'cmd': b'actionCheckport', b'params': {b'port': 15441}})
         response = unpack_dict({b'cmd': b'response', b'to': 0, b'status': b'open', b'ip_external': b'1.2.3.4'})
         self.assertIsInstance(request, CheckPort)
@@ -58,6 +59,44 @@ class TestUnpack(unittest.TestCase):
         state_machine = PacketInterp()
         id_set = set()
         for i in range(100):
-            n = state_machine.next_number()
+            n = PacketInterp.new_id()
             self.assertFalse(n in id_set)
             id_set.add(n)
+
+def setup_packets(key):
+    def decorator(func):
+        def f(self, *args):
+            request = unpack_dict(self.request_dict)
+            response = self.responses[key]
+            state_machine = PacketInterp()
+            state_machine.register(request)
+            return func(self, state_machine, request, response, *args)
+        return f
+    return decorator
+
+class TestInterpreter(unittest.TestCase):
+    def setUp(self):
+        self.request_dict = {b'cmd': b'getFile', b'req_id': 1, b'params': {b'site': b'122tqTo5jTsZfF4xFodhM54b5HUkeVQL4E', b'inner_path': b'content.json', b'location': 0}}
+        self.endpoint = (IPv4Address('127.0.0.1'), 54321)
+        self.responses = {
+            'request': self.request_dict,
+            'legit': {b'cmd': b'response', b'to': 1, b'body': b'content.json content', b'location': 19, b'size': 20},
+            'error': {b'cmd': b'response', b'to': 1, b'error': 'git rekt'},
+            'unknown': {b'cmd': b'response', b'to': 2, b'body': b'content.json content', b'location': 19, b'size': 20},
+        }
+
+    @setup_packets('legit')
+    def test_legit(self, state_machine, request, response):
+        pass
+
+    @setup_packets('request')
+    def test_request(self, state_machine, request, response):
+        pass
+
+    @setup_packets('error')
+    def test_error(self, state_machine, request, response):
+        pass
+
+    @setup_packets('unknown')
+    def test_unknown(self, state_machine, request, response):
+        pass

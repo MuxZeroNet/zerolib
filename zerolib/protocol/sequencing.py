@@ -1,19 +1,22 @@
 from collections import OrderedDict, namedtuple
 from .packets import response_packets, RespFile
+from os import urandom
 
 Info = namedtuple('Info', ['cls', 'attr_dict'])
 
 class PacketInterp(object):
-    __slots__ = ['sequence', '_next_num']
+    __slots__ = ['sequence']
     capacity = 10
 
     def __init__(self):
         self.sequence = OrderedDict()
-        self._next_num = 1
 
-    def next_number(self):
-        self._next_num += 1
-        return self._next_num
+    @staticmethod
+    def new_id():
+        return int.from_bytes(urandom(4), byteorder='big')
+
+    def __repr__(self):
+        return '<%s object seq_len=%d out of %d>' % (self.__class__.__name__, len(self.sequence), self.capacity)
 
     def register(self, packet):
         if not hasattr(packet, 'response_cls'):
@@ -21,13 +24,15 @@ class PacketInterp(object):
 
         self.remove_orphan()
         attr_dict = self.__class__.copy_attrs(packet)
-        self.sequence[packet.req_id] = Info(packet.response_cls, attr_dict)
+
+        identifier = (packet.sender, packet.req_id)
+        self.sequence[identifier] = Info(packet.response_cls, attr_dict)
 
     def interpret(self, packet):
         if not packet.__class__ in response_packets:
             return
 
-        cls, attr_dict = self.sequence.pop(packet.req_id)
+        cls, attr_dict = self.sequence.pop((packet.sender, packet.req_id))
         if not isinstance(packet, cls):
             raise TypeError('Sequence number %d: expects a %s packet, not %s' %
                 (packet.req_id, cls.__name__, packet.__class__.__name__))

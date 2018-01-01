@@ -1,5 +1,6 @@
 import msgpack
-import ipaddress
+from msgpack import Unpacker
+from msgpack.exceptions import OutOfData
 import re
 import struct
 from io import BytesIO
@@ -18,18 +19,68 @@ def unpack(data, sender = None):
 def unpack_stream(stream, sender = None):
     """Unpack a stream, and indicate that it was sent from a network address.
     Only unpacks one packet at a time.
-    Raises: ValueError, TypeError, KeyError
-    Raises: IOError
+    Raises: ValueError, TypeError, KeyError, IOError
     """
-    STEP, STR_LEN, ITER_LEN = (1, 512*1024 + 1, 4000)
-    try:
-        unpacked = msgpack.unpackb(
-            data, read_size=STEP, max_str_len=STR_LEN, max_bin_len=STR_LEN,
-            max_array_len=ITER_LEN, max_map_len=ITER_LEN)
-    except Exception as e:
-        raise ValueError(e.__class__.__name__ + ' : ' + str(e))
+    generator = packet_unpacker()
+    unpacked = next(generator)
+    while unpacked is None:
+        unpacked = generator.send(stream.read(1))
+    return unpacked
 
-    return unpack_dict(unpacked, sender)
+
+def dict_unpacker():
+    kwargs = {
+        'max_str_len': 512 * 1024,
+        'max_bin_len': 512 * 1024,
+        'max_buffer_size': 512 * 1024,
+        'max_array_len': 4000,
+        'max_map_len': 4000,
+        'max_ext_len': 0,
+    }
+    unpacker = msgpack.Unpacker(**kwargs)
+
+    while True:
+        data = yield
+        unpacker.feed(data)
+        try:
+            dict_len = unpacker.read_map_header()
+            if dict_len > 10:
+                raise ValueError('Dict len > 10')
+        except OutOfData:
+            pass
+
+    iterator = iter(unpacker)
+    payload_dict = {}
+
+    for i in range(dict_len):
+        while True:
+            data = yield
+            unpacker.feed(data)
+            try:
+                key = next(iterator)
+                break
+            except StopIteration:
+                pass
+        while True:
+            data = yield
+            unpacker.feed(data)
+            try:
+                value = next(iterator)
+                break
+            except StopIteration:
+                pass
+        payload_dict[key] = value
+
+    yield payload_dict
+
+
+def packet_unpacker(sender = None):
+    generator = dict_unpacker()
+    unpacked = next(generator)
+    while unpacked is None:
+        data = yield
+        unpacked = generator.send(data)
+    yield unpack_dict(unpacked, sender)
 
 
 @val_types(dict)
@@ -91,14 +142,14 @@ class Packet(object):
     def parse(self, params):
         pass
 
-    def pack(self):
+    def pack(self, recipient):
         raise NotImplementedError()
 
     def __bytes__(self):
-        return msgpack.packb(self.pack())
+        return msgpack.packb(self.pack(self.sender))
 
     def write_to(self, stream):
-        return msgpack.pack(self.pack(), stream)
+        return msgpack.pack(self.pack(self.sender), stream)
 
 class PrefixIter(object):
     def __iter__(self):
@@ -131,25 +182,25 @@ class Pong(Packet):
 
 class RespFile(Packet):
     __slots__ = [
-        'body', 'last_byte', 'total_size',
+        'body', 'last_byte_offset', 'total_size',
         'site', 'inner_path',
     ]
 
     @use_condition
     def parse(self, c, params):
         self.total_size = c.as_size('size')
-        self.last_byte = c.range('location', (0, self.total_size - 1))
+        self.last_byte_offset = c.range('location', (0, self.total_size - 1))
 
         body = c.as_type('body', bytes)
         if len(body) > self.total_size:
             raise ValueError('File body length out of range. %d > %d' % (len(body), self.total_size))
-        if self.last_byte + 1 - len(body) < 0:
+        if self.last_byte_offset + 1 - len(body) < 0:
             raise ValueError('File offset cannot be negative')
         self.body = body
 
     @property
     def next_offset(self):
-        return self.last_byte + 1
+        return self.last_byte_offset + 1
 
     @property
     def offset(self):
@@ -166,7 +217,7 @@ class GetFile(Packet):
     def parse(self, c, params):
         self.site = c.btc('site')
         self.inner_path = c.inner('inner_path')
-        self.offset = c.as_size('location')
+        self.offset = c.as_size(opt('location')) or 0
         self.total_size = c.as_size(opt('file_size'))
 
 
@@ -175,39 +226,56 @@ class GetFile(Packet):
 AddrPort = namedtuple('AddrPort', ['address', 'port'])
 # For spec, see https://github.com/HelloZeroNet/Documentation/issues/57
 
-class OnionAddress(object):
-    __slots__ = ['_str', 'packed']
+class Address(object):
+    __slots__ = ['readable', 'packed']
 
     def __init__(self, bytes_or_str):
         if isinstance(bytes_or_str, bytes):
-            self._init_bytes(bytes_or_str)
+            self.init_bytes(bytes_or_str)
         else:
-            self._init_str(bytes_or_str)
+            self.init_str(bytes_or_str)
 
-    def _init_str(self, s):
-        suffix = '.ONION'
+    @staticmethod
+    def strip_suffix(s, suffix):
         s = s.upper()
         if s.endswith(suffix):
             s = s[0:-len(suffix)]
-        self._init_bytes(b32decode(s))
-
-    def _init_bytes(self, bstr):
-        if len(b) not in (10, 35):
-            raise ValueError('A packed onion address should be either 10 or 35 bytes long, not %d' % len(b))
-        self._str = b32encode(bstr).decode('ascii').lower() + '.onion'
-        self.packed = bstr
+        return s
 
     def __str__(self):
-        return self._str
+        return self.readable
 
     def __repr__(self):
-        return 'OnionAddress(%s)' % repr(self.packed)
+        return '%s(%s)' % (self.__class__.__name__, repr(self.packed))
 
     def __eq__(self, other):
         return self.packed == other.packed
 
     def __hash__(self):
         return hash(self.packed)
+
+
+class OnionAddress(Address):
+    def init_str(self, s):
+        s = self.__class__.strip_suffix(s, '.ONION')
+        self.init_bytes(b32decode(s))
+
+    def init_bytes(self, bstr):
+        if len(b) not in (10, 35):
+            raise ValueError('A packed onion address should be either 10 or 35 bytes long, not %d' % len(b))
+        self.readable = b32encode(bstr).decode('ascii').lower() + '.onion'
+        self.packed = bstr
+
+class I2PAddress(Address):
+    def init_str(self, s):
+        s = self.__class__.strip_suffix(s, '.B32.I2P')
+        self.init_bytes(b32decode(s + '===='))
+
+    def init_bytes(self, bstr):
+        if len(b) != 32:
+            raise ValueError('A packed .b32.i2p address should be 32 bytes long, not %d' % len(b))
+        self.readable = b32encode(bstr).decode('ascii').lower() + '.b32.i2p'
+        self.packed = bstr
 
 
 @val_types(bytes)
@@ -227,11 +295,16 @@ def unpack_onion(b):
     port = struct.unpack('>H', b[-2:])
     return AddrPort(address, port)
 
+@val_types(bytes)
+def unpack_i2p(b):
+    address = I2PAddress(b)
+    return AddrPort(address, 0)
+
 
 #################### peer exchange ####################
 
 class RespPEX(Packet):
-    __slots__ = ['peers', 'onions', 'site']
+    __slots__ = ['peers', 'onions', 'garlics', 'site']
 
     @use_condition
     def parse(self, c, params):
@@ -239,7 +312,7 @@ class RespPEX(Packet):
 
 class PEX(Packet):
     """Unpacked [pex] packet that exchanges peers with the client. Peers will be parsed at init."""
-    __slots__ = ['site', 'peers', 'onions', 'need']
+    __slots__ = ['site', 'peers', 'onions', 'garlics', 'need']
     response_cls = RespPEX
     copy_attrs = ['site']
 
@@ -249,21 +322,21 @@ class PEX(Packet):
         self.need = c.range(opt('need'), (0, 10000)) or 0
         self.parse_peers(self, c)
 
+    @staticmethod
+    def unpack_peers(c, unpack_func, key):
+        raw_list = c.as_type(opt(key), list) or ()
+        peers = set()
+        for peer in raw_list:
+            try:
+                peers.add(unpack_func(peer))
+            except (TypeError, ValueError):
+                pass
+        return peers
+
     def parse_peers(self, c):
-        b_peers = c.as_type(opt('peers'), list) or ()
-        b_onions = c.as_type(opt('peers_onion'), list) or ()
-        self.peers = set()
-        self.onions = set()
-        for peer in b_peers:
-            try:
-                self.peers.add(unpack_ip(peer))
-            except (TypeError, ValueError):
-                pass
-        for onion in b_onions:
-            try:
-                self.onions.add(unpack_onion(onion))
-            except (TypeError, ValueError):
-                pass
+        self.peers = self.__class__.unpack_peers(c, unpack_ip, 'peers')
+        self.onions = self.__class__.unpack_peers(c, unpack_onion, 'peers_onion')
+        self.garlics = self.__class__.unpack_peers(c, unpack_i2p, 'peers_i2p')
 
 
 #################### file update ####################
@@ -321,7 +394,7 @@ class Handshake(Packet):
 
 
 
-class OhHi(Handshake):
+class ACK(Handshake):
     __slots__ = ['preferred_crypto']
 
     @use_condition
@@ -549,7 +622,7 @@ request_dict = {
 }
 
 attr_dict = {
-    b'protocol': OhHi,
+    b'protocol': ACK,
     b'ok': Predicate,
     b'error': Predicate,
     b'pong': Pong,
@@ -565,7 +638,7 @@ attr_type_dict = {
     (b'peers', dict): RespHashDict,
 }
 
-response_packets = set([])
+response_packets = set()
 for v in request_dict.values():
     try:
         response_packets.add(getattr(v, 'response_cls'))
@@ -575,12 +648,13 @@ for v in request_dict.values():
 
 __all__ = [
     'unpack', 'unpack_stream', 'unpack_dict', 'response_packets',
+    'dict_unpacker', 'packet_unpacker',
     'OnionAddress', 'Packet', 'PrefixIter',
 
     'GetFile', 'PEX', 'Update', 'Ping', 'Handshake', 'ListMod',
     'GetHash', 'SetHash', 'FindHash', 'CheckPort', 'GetPieceStatus',
     'SetPieceStatus',
 
-    'RespFile', 'RespPEX', 'Predicate', 'Pong', 'OhHi', 'RespMod',
+    'RespFile', 'RespPEX', 'Predicate', 'Pong', 'ACK', 'RespMod',
     'RespHashSet', 'RespHashDict', 'RespPort', 'RespPieceDict',
 ]
