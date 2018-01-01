@@ -26,9 +26,9 @@ Every symmetrical packet contains enough information which the program can inter
     :var str version: the version string of the sender's software.
     :var int rev: the rev number of the sender's software.
 
-.. class:: OhHi(Handshake)
+.. class:: ACK(Handshake)
 
-    Response packet of :class:`Handshake`.
+    Response packet of :class:`Handshake`. Marks the end of a handshake.
 
     :var str preferred_crypto: the cryptographic algorithm that the sender would like to use.
 
@@ -53,10 +53,15 @@ An asymmetrical response packet itself does not contain enough information. To f
 
     :var str site: |bitcoin|
     :var int need: the number of peers the sender needs.
+
     :var peers: clearnet peers.
     :vartype peers: set of :class:`AddrPort`
+
     :var onions: Tor Onion Service peers.
     :vartype onions: set of :class:`AddrPort`
+
+    :var garlics: I2P Hidden Service peers.
+    :vartype garlics: set of :class:`AddrPort`
 
 .. class:: RespPEX(Packet)
 
@@ -64,8 +69,12 @@ An asymmetrical response packet itself does not contain enough information. To f
 
     :var peers: clearnet peers.
     :vartype peers: set of :class:`AddrPort`
+
     :var onions: Tor Onion Service peers.
     :vartype onions: set of :class:`AddrPort`
+
+    :var garlics: I2P Hidden Service peers.
+    :vartype garlics: set of :class:`AddrPort`
 
     |injected|
 

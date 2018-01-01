@@ -39,7 +39,7 @@ Routing
 
     :var AddrPort dest: the destination of the peer.
 
-    :var address: property. The address of a peer, exclusing the port number. It could be an IPv4Address, an IPv6Address, or an :class:`OnionAddress`.
+    :var address: property. The address of a peer, exclusing the port number. It could be an IPv4Address, an IPv6Address, an :class:`OnionAddress`, or an :class:`I2PAddress`.
 
     :var int port: property. The port number.
 
@@ -105,21 +105,35 @@ Packets
 
     A named ``(address, port)`` tuple.
 
-    :var address: could be an IPv4Address, an IPv6Address, or an :class:`OnionAddress`.
+    :var address: could be an IPv4Address, an IPv6Address, an :class:`OnionAddress`, or an :class:`I2PAddress`.
 
     :var int port: the port number.
 
-.. class:: OnionAddress(object)
+.. class:: OnionAddress(Address)
 
     A Tor Onion Service address, either v2 or v3.
 
     .. attribute:: packed
 
-        The packed version of the address, either 10 bytes or 35 bytes long.
+        The packed representation of the address, either 10 bytes or 35 bytes long.
 
     .. method:: __str__(self)
 
-        Returns the human readable, base-32 encoded version of the address, with the ``.onion`` suffix.
+        Returns the human readable, base-32 encoded representation of the address, with the ``.onion`` suffix.
+
+        :rtype: str
+
+.. class:: I2PAddress(Address)
+
+    An I2P address, the SHA-256 hash of an I2P Destination.
+
+    .. attribute:: packed
+
+        The packed representation of the address, a SHA-256 hash.
+
+    .. method:: __str__(self)
+
+        Returns the human readable, base-32 encoded representation of the address, with the ``.b32.i2p`` suffix.
 
         :rtype: str
 
@@ -204,8 +218,8 @@ Packets
         :raises TypeError: when the type of the packet is unexpected.
         :raises KeyError: when it cannot find any registered request packet that has the same sequence number.
 
-    .. method:: next_number(self)
+    .. staticmethod:: new_id()
 
-        Returns a new usable sequence number. The sequence number always increases and never repeats.
+        Returns a new usable sequence number. The sequence number is a random unsigned 32-bit integer.
 
 .. seealso:: `What are asymmetrical packets and why? <../discussion/>`_
